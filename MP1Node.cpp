@@ -161,6 +161,8 @@ int MP1Node::finishUpThisNode(){
    /*
     * Your code goes here
     */
+    memberNode->memberList.clear();
+    memberNode->mp1q.clear();
     return 0;
 }
 
