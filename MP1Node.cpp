@@ -162,7 +162,7 @@ int MP1Node::finishUpThisNode(){
     * Your code goes here
     */
     memberNode->memberList.clear();
-    memberNode->mp1q.clear();
+    memberNode->inGroup = false;
     return 0;
 }
 
@@ -205,7 +205,7 @@ void MP1Node::checkMessages() {
     	ptr = memberNode->mp1q.front().elt;
     	size = memberNode->mp1q.front().size;
     	memberNode->mp1q.pop();
-    	recvCallBack((void *)memberNode, (char *)ptr, size);
+    	recvCallBack((char *)ptr, size);
     }
     return;
 }
@@ -215,10 +215,11 @@ void MP1Node::checkMessages() {
  *
  * DESCRIPTION: Message handler for different message types
  */
-bool MP1Node::recvCallBack(void *env, char *data, int size ) {
+bool MP1Node::recvCallBack(char *data, int size ) {
 	/*
 	 * Your code goes here
 	 */
+
     return true;
 }
 
