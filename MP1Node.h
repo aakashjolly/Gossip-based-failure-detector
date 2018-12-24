@@ -34,6 +34,14 @@ enum MsgTypes{
     DUMMYLASTMSGTYPE
 };
 
+typedef struct MemberEntry{
+    Address addr;
+    long heartbeat;
+    MemberEntry(Address address, long hb) : addr(address), heartbeat(hb){
+    
+    }
+}MemberEntry;
+
 /**
  * STRUCT NAME: MessageHdr
  *
@@ -41,6 +49,7 @@ enum MsgTypes{
  */
 typedef struct MessageHdr {
 	enum MsgTypes msgType;
+        std::vector<MemberEntry> addr_beats; 
 }MessageHdr;
 
 /**
