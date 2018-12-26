@@ -240,6 +240,7 @@ void MP1Node::addMembers(char* data) {
         if(found == memberNode->memberList.end()) {
             memberNode->memberList.emplace_back(member_id, member_port,
                     member_beat, par->getcurrtime());
+            logAdd(member_id, member_port);
         }
         else {
             //Member found
@@ -251,6 +252,7 @@ void MP1Node::addMembers(char* data) {
         
         }
     }
+
 }
 
 vector<MemberListEntry>::iterator MP1Node::findMember(int id, short port) {
@@ -282,6 +284,12 @@ void MP1Node::sendMemberListToNode(Address *recv_addr, MsgTypes msgtype) {
     free(msg);
 }
 
+void MP1Node::logAdd(int id, short port) {
+    Address to_add;
+    *(int*)(&to_add.addr) = id;
+    *(char*)(&to_add.addr[4]) = port;
+    log->logNodeAdd(&memberNode->addr, &to_add);
+}
 
 /**
  * FUNCTION NAME: nodeLoopOps
@@ -333,7 +341,7 @@ void MP1Node::initMemberListTable(Member *memberNode) {
         int my_id = *(int*)(&memberNode->addr.addr);
         short my_port = *(char*)(&memberNode->addr.addr[4]);
         memberNode->memberList.emplace_back(my_id, my_port, 0, par->getcurrtime());
-        memberNode->myPos = memberNode->memberList.begin();
+        log->logNodeAdd(&memberNode->addr, &memberNode->addr);
 }
 
 /**
