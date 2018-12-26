@@ -131,7 +131,7 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
     }
     else {
         // create JOINREQ message: format of data is {struct Address myaddr}
-        sendMemberListToNode(joinaddr, MsgTypes::JOINREQ);
+        sendMemberListToNode(joinaddr, MsgTypes::JOINREQ, memberNode->memberList);
 #ifdef DEBUGLOG
         sprintf(s, "Trying to join...");
         log->LOG(&memberNode->addr, s);
@@ -212,11 +212,12 @@ bool MP1Node::recvCallBack(char *data, int size ) {
     MessageHdr* recv_msg = (MessageHdr*) data;
     if(recv_msg->msgType == MsgTypes::JOINREQ) {
         addMembers(data);
-        sendMemberListToNode(&recv_msg->addr, MsgTypes::JOINREP);
+        sendMemberListToNode(&recv_msg->addr, MsgTypes::JOINREP,
+                memberNode->memberList);
     } else if(recv_msg->msgType == MsgTypes::JOINREP) {
         addMembers(data);
         memberNode->inGroup = true;
-    } else if(recv_msg->msgType = MsgTypes::GOSSIP) {
+    } else if(recv_msg->msgType == MsgTypes::GOSSIP) {
         addMembers(data);
     } else {
         // For Dummy Message? future false use
@@ -248,6 +249,7 @@ void MP1Node::addMembers(char* data) {
             //else ignore, if not failed check if new heartbeat and update time
             if(found->getheartbeat() < member_beat) {
                 found->setheartbeat(member_beat);
+                found->settimestamp(par->getcurrtime());
             }
         
         }
@@ -265,8 +267,9 @@ vector<MemberListEntry>::iterator MP1Node::findMember(int id, short port) {
     return found;
 }
 
-void MP1Node::sendMemberListToNode(Address *recv_addr, MsgTypes msgtype) {
-    auto my_members_size = memberNode->memberList.size();
+void MP1Node::sendMemberListToNode(Address *recv_addr, MsgTypes msgtype,
+        std::vector<MemberListEntry>& memberVector) {
+    auto my_members_size = memberVector.size();
     size_t msgsize = sizeof(MessageHdr) + my_members_size*(sizeof(MemberListEntry));
     MessageHdr * msg = (MessageHdr*) malloc(msgsize* sizeof(char));
     char *data = (char *) (msg+1);
@@ -275,7 +278,7 @@ void MP1Node::sendMemberListToNode(Address *recv_addr, MsgTypes msgtype) {
     msg->numElements = my_members_size;
 
     if(msg->numElements > 0) {
-        memcpy(data, memberNode->memberList.data(), msg->numElements *
+        memcpy(data, memberVector.data(), msg->numElements *
                 sizeof(MemberListEntry));
     }
 
@@ -284,12 +287,6 @@ void MP1Node::sendMemberListToNode(Address *recv_addr, MsgTypes msgtype) {
     free(msg);
 }
 
-void MP1Node::logAdd(int id, short port) {
-    Address to_add;
-    *(int*)(&to_add.addr) = id;
-    *(char*)(&to_add.addr[4]) = port;
-    log->logNodeAdd(&memberNode->addr, &to_add);
-}
 
 /**
  * FUNCTION NAME: nodeLoopOps
@@ -300,9 +297,36 @@ void MP1Node::logAdd(int id, short port) {
  */
 void MP1Node::nodeLoopOps() {
 
-	/*
-	 * Your code goes here
-	 */
+    // inc self heartbeat
+    auto myEntry = memberNode->memberList.begin();
+    myEntry->setheartbeat(myEntry->getheartbeat()+1);
+    myEntry->settimestamp(par->getcurrtime());
+
+    // If TREMOVE eliminate entries
+    auto it = myEntry;
+    while(it != memberNode->memberList.end()) {
+        if((it->gettimestamp() + TREMOVE) < par->getcurrtime()) {
+            logRemove(it->getid(), it->getport());
+            it = memberNode->memberList.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    // If TFAIL dont send
+    std::vector<MemberListEntry> entries_to_send;
+    auto func_include = [this](MemberListEntry & m) {
+        return ((m.gettimestamp() + TFAIL) >= par->getcurrtime());
+    };
+    std::copy_if(memberNode->memberList.begin(),
+            memberNode->memberList.end(), std::back_inserter(entries_to_send),
+            func_include);
+
+    // Send
+    for(unsigned int i = 0; i < entries_to_send.size(); ++i) {
+        auto addr_to_send = genAddress(entries_to_send[i].getid(),
+                entries_to_send[i].getport());
+        sendMemberListToNode(&addr_to_send, MsgTypes::GOSSIP, entries_to_send); 
+    }
 
     return;
 }
@@ -314,6 +338,23 @@ void MP1Node::nodeLoopOps() {
  */
 int MP1Node::isNullAddress(Address *addr) {
 	return (memcmp(addr->addr, NULLADDR, 6) == 0 ? 1 : 0);
+}
+
+void MP1Node::logAdd(int id, short port) {
+    Address to_add = genAddress(id, port);
+    log->logNodeAdd(&memberNode->addr, &to_add);
+}
+
+void MP1Node::logRemove(int id, short port) {
+    Address to_remove = genAddress(id, port);
+    log->logNodeRemove(&memberNode->addr, &to_remove);
+}
+
+Address MP1Node::genAddress(int id, short port) {
+    Address to_add;
+    *(int*)(&to_add.addr) = id;
+    *(char*)(&to_add.addr[4]) = port;
+    return to_add;
 }
 
 /**

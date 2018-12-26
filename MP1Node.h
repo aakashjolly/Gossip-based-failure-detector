@@ -18,9 +18,11 @@
 /**
  * Macros
  */
-#define TREMOVE 20
-#define TFAIL 5
+//#define TREMOVE 20
+//#define TFAIL 5
 
+static const int TREMOVE = 20;
+static const int TFAIL = 5;
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
  */
@@ -60,9 +62,12 @@ private:
 	Member *memberNode;
 	char NULLADDR[6];
         void logAdd(int id, short port);
+        void logRemove(int id, short port);
+        Address genAddress(int id, short port);
         void addMembers(char* data);
         vector<MemberListEntry>::iterator findMember(int id, short port);
-        void sendMemberListToNode(Address *addr, MsgTypes msgtype);
+        void sendMemberListToNode(Address *addr, MsgTypes msgtype,
+                std::vector<MemberListEntry>& memberVector);
 public:
 	MP1Node(Member *, Params *, EmulNet *, Log *, Address *);
 	Member * getMemberNode() {
