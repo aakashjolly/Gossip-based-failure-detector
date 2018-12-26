@@ -14,7 +14,7 @@
 #include "Member.h"
 #include "EmulNet.h"
 #include "Queue.h"
-
+#include<memory>
 /**
  * Macros
  */
@@ -31,16 +31,10 @@
 enum MsgTypes{
     JOINREQ,
     JOINREP,
+    GOSSIP,
     DUMMYLASTMSGTYPE
 };
 
-typedef struct MemberEntry{
-    Address addr;
-    long heartbeat;
-    MemberEntry(Address address, long hb) : addr(address), heartbeat(hb){
-    
-    }
-}MemberEntry;
 
 /**
  * STRUCT NAME: MessageHdr
@@ -49,7 +43,8 @@ typedef struct MemberEntry{
  */
 typedef struct MessageHdr {
 	enum MsgTypes msgType;
-        std::vector<MemberEntry> addr_beats; 
+        Address addr;
+        int numElements;
 }MessageHdr;
 
 /**
@@ -64,7 +59,9 @@ private:
 	Params *par;
 	Member *memberNode;
 	char NULLADDR[6];
-
+        void addMembers(char* data);
+        vector<MemberListEntry>::iterator findMember(int id, short port);
+        void sendMemberListToNode(Address *addr, MsgTypes msgtype);
 public:
 	MP1Node(Member *, Params *, EmulNet *, Log *, Address *);
 	Member * getMemberNode() {

@@ -118,7 +118,6 @@ int MP1Node::initThisNode(Address *joinaddr) {
  * DESCRIPTION: Join the distributed system
  */
 int MP1Node::introduceSelfToGroup(Address *joinaddr) {
-	MessageHdr *msg;
 #ifdef DEBUGLOG
     static char s[1024];
 #endif
@@ -131,21 +130,12 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
         memberNode->inGroup = true;
     }
     else {
-        msg = new MessageHdr();
         // create JOINREQ message: format of data is {struct Address myaddr}
-        msg->msgType = JOINREQ;
-        msg->addr_beats.emplace_back(memberNode->addr, memberNode->heartbeat);
-
+        sendMemberListToNode(joinaddr, MsgTypes::JOINREQ);
 #ifdef DEBUGLOG
         sprintf(s, "Trying to join...");
         log->LOG(&memberNode->addr, s);
 #endif
-
-        // send JOINREQ message to introducer member
-        emulNet->ENsend(&memberNode->addr, joinaddr, (char *)msg,
-                sizeof(msg));
-
-        free(msg);
     }
 
     return 1;
@@ -219,9 +209,79 @@ bool MP1Node::recvCallBack(char *data, int size ) {
 	/*
 	 * Your code goes here
 	 */
-
+    MessageHdr* recv_msg = (MessageHdr*) data;
+    if(recv_msg->msgType == MsgTypes::JOINREQ) {
+        addMembers(data);
+        sendMemberListToNode(&recv_msg->addr, MsgTypes::JOINREP);
+    } else if(recv_msg->msgType == MsgTypes::JOINREP) {
+        addMembers(data);
+        memberNode->inGroup = true;
+    } else if(recv_msg->msgType = MsgTypes::GOSSIP) {
+        addMembers(data);
+    } else {
+        // For Dummy Message? future false use
+        return false;
+    }
+    
+    free(data);
     return true;
 }
+
+void MP1Node::addMembers(char* data) {
+    MessageHdr* recv_msg = (MessageHdr*) data;
+    MemberListEntry * members = (MemberListEntry*)(recv_msg+1);
+    for(int i = 0; i < recv_msg->numElements; ++i) {
+        int member_id = members[i].getid();
+        short member_port = members[i].getport();
+        long member_beat = members[i].getheartbeat();
+        
+        auto found = findMember(member_id, member_port);
+        // Member not found
+        if(found == memberNode->memberList.end()) {
+            memberNode->memberList.emplace_back(member_id, member_port,
+                    member_beat, par->getcurrtime());
+        }
+        else {
+            //Member found
+            //Check if heartbeat is new and update time, otherwise ignore
+            //else ignore, if not failed check if new heartbeat and update time
+            if(found->getheartbeat() < member_beat) {
+                found->setheartbeat(member_beat);
+            }
+        
+        }
+    }
+}
+
+vector<MemberListEntry>::iterator MP1Node::findMember(int id, short port) {
+    auto func_comp = [id, port](MemberListEntry &m1) {
+        return (m1.getid() == id && m1.getport() == port);
+    };
+    auto found = std::find_if(memberNode->memberList.begin(),
+            memberNode->memberList.end(), func_comp);
+   
+    return found;
+}
+
+void MP1Node::sendMemberListToNode(Address *recv_addr, MsgTypes msgtype) {
+    auto my_members_size = memberNode->memberList.size();
+    size_t msgsize = sizeof(MessageHdr) + my_members_size*(sizeof(MemberListEntry));
+    MessageHdr * msg = (MessageHdr*) malloc(msgsize* sizeof(char));
+    char *data = (char *) (msg+1);
+    msg->msgType = msgtype;
+    msg->addr = memberNode->addr;
+    msg->numElements = my_members_size;
+
+    if(msg->numElements > 0) {
+        memcpy(data, memberNode->memberList.data(), msg->numElements *
+                sizeof(MemberListEntry));
+    }
+
+    emulNet->ENsend(&memberNode->addr, recv_addr, (char *)msg,
+            msgsize);
+    free(msg);
+}
+
 
 /**
  * FUNCTION NAME: nodeLoopOps
@@ -270,6 +330,10 @@ Address MP1Node::getJoinAddress() {
  */
 void MP1Node::initMemberListTable(Member *memberNode) {
 	memberNode->memberList.clear();
+        int my_id = *(int*)(&memberNode->addr.addr);
+        short my_port = *(char*)(&memberNode->addr.addr[4]);
+        memberNode->memberList.emplace_back(my_id, my_port, 0, par->getcurrtime());
+        memberNode->myPos = memberNode->memberList.begin();
 }
 
 /**
