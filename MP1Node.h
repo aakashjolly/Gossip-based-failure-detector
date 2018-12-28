@@ -61,12 +61,12 @@ private:
 	Params *par;
 	Member *memberNode;
 	char NULLADDR[6];
-        void logAdd(int id, short port);
-        void logRemove(int id, short port);
-        Address genAddress(int id, short port);
-        void addMembers(char* data);
-        vector<MemberListEntry>::iterator findMember(int id, short port);
-        void sendMemberListToNode(Address *addr, MsgTypes msgtype,
+        void logAdd_(int id, short port);
+        void logRemove_(int id, short port);
+        Address genAddress_(int id, short port);
+        void addMembers_(char* data);
+        vector<MemberListEntry>::iterator findMember_(int id, short port);
+        void sendMemberListToNode_(Address *addr, MsgTypes msgtype,
                 std::vector<MemberListEntry>& memberVector);
 public:
 	MP1Node(Member *, Params *, EmulNet *, Log *, Address *);
