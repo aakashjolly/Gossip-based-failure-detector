@@ -319,7 +319,7 @@ void MP1Node::nodeLoopOps() {
     if(available_entries.size() > 3) {
         std::vector<MemberListEntry> to_send;   
         std::vector<MemberListEntry> random_pool(available_entries);
-        unsigned int num_members_to_send = log2(random_pool.size()-1);
+        uint64_t num_members_to_send = log2(random_pool.size()-1);
         while(to_send.size() < num_members_to_send) {
             int index = (rand() % (random_pool.size()-1)) +1;
             to_send.push_back(random_pool[index]);
