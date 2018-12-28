@@ -16,14 +16,11 @@
  * You can add new members to the class if you think it
  * is necessary for your logic to work
  */
-MP1Node::MP1Node(Member *member, Params *params, EmulNet *emul, Log *log, Address *address) {
+MP1Node::MP1Node(Member *member, Params *params, EmulNet *emul, Log *log,
+        Address *address) : emulNet(emul), log(log), par(params), memberNode(member) {
 	for( int i = 0; i < 6; i++ ) {
 		NULLADDR[i] = 0;
 	}
-	this->memberNode = member;
-	this->emulNet = emul;
-	this->log = log;
-	this->par = params;
 	this->memberNode->addr = *address;
 }
 
@@ -96,8 +93,6 @@ int MP1Node::initThisNode(Address *joinaddr) {
 	/*
 	 * This function is partially implemented and may require changes
 	 */
-	//int id = *(int*)(&memberNode->addr.addr);
-	//int port = *(short*)(&memberNode->addr.addr[4]);
 
 	memberNode->bFailed = false;
 	memberNode->inited = true;
@@ -237,7 +232,7 @@ void MP1Node::addMembers_(char* data) {
         long member_beat = members[i].getheartbeat();
         
         auto found = findMember_(member_id, member_port);
-        // Member not found
+        // Member not found, add entry with latest heartbeat and current time
         if(found == memberNode->memberList.end()) {
             memberNode->memberList.emplace_back(member_id, member_port,
                     member_beat, par->getcurrtime());
@@ -246,7 +241,6 @@ void MP1Node::addMembers_(char* data) {
         else {
             //Member found
             //Check if heartbeat is new and update time, otherwise ignore
-            //else ignore, if not failed check if new heartbeat and update time
             if(found->getheartbeat() < member_beat) {
                 found->setheartbeat(member_beat);
                 found->settimestamp(par->getcurrtime());

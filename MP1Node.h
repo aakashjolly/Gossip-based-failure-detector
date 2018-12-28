@@ -18,8 +18,6 @@
 /**
  * Macros
  */
-//#define TREMOVE 20
-//#define TFAIL 5
 
 static const int TREMOVE = 20;
 static const int TFAIL = 5;
