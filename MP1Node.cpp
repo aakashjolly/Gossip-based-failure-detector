@@ -322,7 +322,7 @@ void MP1Node::nodeLoopOps() {
             func_include);
 
     // Send
-    for(unsigned int i = 0; i < entries_to_send.size(); ++i) {
+    for(unsigned int i = 1; i < entries_to_send.size(); ++i) {
         auto addr_to_send = genAddress(entries_to_send[i].getid(),
                 entries_to_send[i].getport());
         sendMemberListToNode(&addr_to_send, MsgTypes::GOSSIP, entries_to_send); 
