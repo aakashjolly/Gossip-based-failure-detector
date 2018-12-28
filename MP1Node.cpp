@@ -312,22 +312,38 @@ void MP1Node::nodeLoopOps() {
             ++it;
         }
     }
-    // If TFAIL dont send
-    std::vector<MemberListEntry> entries_to_send;
+    // If TFAIL dont send to that entries and pop-up valid entries
+    std::vector<MemberListEntry> available_entries;
     auto func_include = [this](MemberListEntry & m) {
         return ((m.gettimestamp() + TFAIL) >= par->getcurrtime());
     };
     std::copy_if(memberNode->memberList.begin(),
-            memberNode->memberList.end(), std::back_inserter(entries_to_send),
+            memberNode->memberList.end(), std::back_inserter(available_entries),
             func_include);
 
-    // Send
-    for(unsigned int i = 1; i < entries_to_send.size(); ++i) {
-        auto addr_to_send = genAddress(entries_to_send[i].getid(),
-                entries_to_send[i].getport());
-        sendMemberListToNode(&addr_to_send, MsgTypes::GOSSIP, entries_to_send); 
-    }
+    // Send to O(logn) entries
+    if(available_entries.size() > 3) {
+        std::vector<MemberListEntry> to_send;   
+        std::vector<MemberListEntry> random_pool(available_entries);
+        unsigned int num_members_to_send = log2(random_pool.size()-1);
+        while(to_send.size() < num_members_to_send) {
+            int index = (rand() % (random_pool.size()-1)) +1;
+            to_send.push_back(random_pool[index]);
+            random_pool.erase(random_pool.begin()+index);
+        }
 
+        for(auto & entry : to_send) {
+            auto addr_to_send = genAddress(entry.getid(),
+                    entry.getport());
+            sendMemberListToNode(&addr_to_send, MsgTypes::GOSSIP,
+                available_entries); 
+        }
+    }
+    else {    
+        auto addr_to_send = genAddress(available_entries[1].getid(),
+                available_entries[1].getport());
+        sendMemberListToNode(&addr_to_send, MsgTypes::GOSSIP, available_entries); 
+    }
     return;
 }
 
